@@ -1,41 +1,44 @@
-FROM php:7.1-fpm-alpine
+FROM php:7.2-fpm-alpine3.10 as temp
 
-ADD build/ /docker-build/
+COPY extensions /extensions
 
-RUN echo -e "https://mirrors.ustc.edu.cn/alpine/latest-stable/main\nhttps://mirrors.ustc.edu.cn/alpine/latest-stable/community" > /etc/apk/repositories && \
+# 编译xhprof
+RUN echo -e "https://mirrors.aliyun.com/alpine/v3.10/main\n" > /etc/apk/repositories && \
+    echo -e "https://mirrors.aliyun.com/alpine/v3.10/community\n" >> /etc/apk/repositories && \
     apk update && \
     apk upgrade && \
-    apk --no-cache add ca-certificates && update-ca-certificates && \
+    apk add --no-cache --virtual .phpize-deps $PHPIZE_DEPS && \
+    cd /extensions/xhprof && phpize && ./configure && make && make install && \
+    mkdir /php-ext && cp $(php-config --extension-dir)/xhprof.so /php-ext
+
+FROM php:7.2-fpm-alpine3.10
+
+COPY --from=temp /php-ext/* /php-ext/
+COPY profiler_gui/ /var/www/xhprof/
+
+RUN echo -e "https://mirrors.aliyun.com/alpine/v3.10/main\n" > /etc/apk/repositories && \
+    echo -e "https://mirrors.aliyun.com/alpine/v3.10/community\n" >> /etc/apk/repositories && \
+    apk update && \
+    apk upgrade && \
     apk --no-cache add \
-        autoconf \
-        build-base \
-        zlib-dev \
-        libtool \
-        linux-headers \
-        freetype-dev \
-        libpng-dev \
-        libjpeg-turbo-dev \
+        ca-certificates \
+        freetype-dev libpng-dev libjpeg-turbo-dev \
         graphviz \
         pcre-dev \
         ttf-dejavu \
         ttf-droid \
         ttf-freefont \
         ttf-liberation \
-        ttf-ubuntu-font-family
+        ttf-ubuntu-font-family && \
+    update-ca-certificates
 
 RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ && \
-    docker-php-ext-install gd
+    docker-php-ext-install gd && \
+    mv /php-ext/xhprof.so $(php-config --extension-dir) && \
+    docker-php-ext-enable xhprof && \
+    printf "\nxhprof.output_dir = \${XHPROF_OUTPUT_DIR}" >> /usr/local/etc/php/conf.d/xhprof.ini
 
-RUN mkdir -p /var/www/xhprof && \
-    cp -R /docker-build/php-extensions/xhprof/xhprof_html /var/www/xhprof/xhprof_html && \
-    cp -R /docker-build/php-extensions/xhprof/xhprof_lib /var/www/xhprof/xhprof_lib
-
-# 安装xhprof扩展
-RUN cd /docker-build/php-extensions/xhprof/extension && \
-    phpize && ./configure && make && make install && \
-    echo -e "extension=xhprof.so" >> /usr/local/etc/php/conf.d/xhprof.ini && \
-    echo -e "xhprof.output_dir=\${XHPROFILE_DIR}" >> /usr/local/etc/php/conf.d/xhprof.ini && \
-    rm -rf /docker-build
+ENV XHPROF_OUTPUT_DIR=""
 
 WORKDIR /var/www/xhprof/xhprof_html
 
