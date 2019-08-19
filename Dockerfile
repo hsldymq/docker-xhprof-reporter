@@ -36,7 +36,7 @@ RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-di
     docker-php-ext-install gd && \
     mv /php-ext/xhprof.so $(php-config --extension-dir) && \
     docker-php-ext-enable xhprof && \
-    printf "\nxhprof.output_dir = \${XHPROF_OUTPUT_DIR}" >> /usr/local/etc/php/conf.d/xhprof.ini
+    printf "\nxhprof.output_dir = \"\${XHPROF_OUTPUT_DIR}\"" >> /usr/local/etc/php/conf.d/xhprof.ini
 
 ENV XHPROF_OUTPUT_DIR=""
 
