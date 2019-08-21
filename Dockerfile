@@ -38,7 +38,10 @@ RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-di
     docker-php-ext-enable xhprof && \
     printf "\nxhprof.output_dir = \"\${XHPROF_OUTPUT_DIR}\"" >> /usr/local/etc/php/conf.d/xhprof.ini
 
-ENV XHPROF_OUTPUT_DIR=""
+COPY php.ini /usr/local/etc/php/conf.d/0.php.ini
+
+ENV XHPROF_OUTPUT_DIR="" \
+    PHP_TIMEZONE="Asia/Shanghai"
 
 WORKDIR /var/www/xhprof/xhprof_html
 
